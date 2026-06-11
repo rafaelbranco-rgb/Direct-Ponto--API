@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import 'dotenv/config';
 import { DataSource } from 'typeorm';
 
 import { Papel, TipoUsuario } from './common/enums';
@@ -20,6 +21,7 @@ async function main() {
     database: c.db.base,
     entities: [Usuario, Chamado, Mensagem],
     synchronize: true,
+    ssl: c.db.ssl ? { rejectUnauthorized: false } : false,
   });
   await ds.initialize();
   const repo = ds.getRepository(Usuario);

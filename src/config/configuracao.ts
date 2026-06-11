@@ -11,6 +11,7 @@ export interface Config {
     senha: string;
     base: string;
     sync: boolean;
+    ssl: boolean;
   };
   rm: {
     validarUrl: string;
@@ -43,6 +44,7 @@ export default (): Config => ({
     senha: process.env.DB_PASS ?? 'contato',
     base: process.env.DB_NAME ?? 'contato',
     sync: (process.env.DB_SYNC ?? 'true') === 'true',
+    ssl: (process.env.DB_SSL ?? 'false') === 'true',
   },
   rm: {
     validarUrl: process.env.N8N_RM_VALIDAR_URL ?? '',

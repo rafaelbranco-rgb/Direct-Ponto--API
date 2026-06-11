@@ -1,11 +1,13 @@
+import { randomUUID } from 'crypto';
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
   OneToMany,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
@@ -15,8 +17,13 @@ import { Usuario } from './usuario.entity';
 
 @Entity('chamados')
 export class Chamado {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn('uuid')
   id: string;
+
+  @BeforeInsert()
+  gerarId() {
+    if (!this.id) this.id = randomUUID();
+  }
 
   @Column({ unique: true })
   protocolo: string;

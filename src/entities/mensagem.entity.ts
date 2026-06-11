@@ -1,10 +1,12 @@
+import { randomUUID } from 'crypto';
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
 } from 'typeorm';
 
 import { AutorMensagem } from '../common/enums';
@@ -12,8 +14,13 @@ import { Chamado } from './chamado.entity';
 
 @Entity('mensagens')
 export class Mensagem {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn('uuid')
   id: string;
+
+  @BeforeInsert()
+  gerarId() {
+    if (!this.id) this.id = randomUUID();
+  }
 
   @ManyToOne(() => Chamado, (c) => c.mensagens, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'chamado_id' })

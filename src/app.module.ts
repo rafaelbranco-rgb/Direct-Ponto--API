@@ -30,6 +30,7 @@ import { Usuario } from './entities/usuario.entity';
           database: db.base,
           entities: [Usuario, Chamado, Mensagem],
           synchronize: db.sync,
+          ssl: db.ssl ? { rejectUnauthorized: false } : false,
         };
       },
     }),

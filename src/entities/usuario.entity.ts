@@ -1,9 +1,11 @@
+import { randomUUID } from 'crypto';
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
   Index,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
@@ -12,8 +14,13 @@ import { Papel, TipoUsuario } from '../common/enums';
 /** Colaboradores e atendentes. Senha sempre como hash (bcrypt), nunca em texto. */
 @Entity('usuarios')
 export class Usuario {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn('uuid')
   id: string;
+
+  @BeforeInsert()
+  gerarId() {
+    if (!this.id) this.id = randomUUID();
+  }
 
   @Column({ type: 'enum', enum: TipoUsuario })
   tipo: TipoUsuario;
