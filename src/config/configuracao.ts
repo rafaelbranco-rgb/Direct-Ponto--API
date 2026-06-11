@@ -14,12 +14,19 @@ export interface Config {
     ssl: boolean;
   };
   rm: {
-    validarUrl: string;
+    /** Em dev, sem RM configurado, simula respostas. */
+    fake: boolean;
+    /** Web service do RM (Consulta SQL) para funcionários/CPF. */
+    apiUrl: string;
+    apiUser: string;
+    apiPass: string;
+    consultaCod: string;
+    coligada: number;
+    sistema: string;
+    /** n8n (gravar ajuste na folha / consultar ponto) — pode entrar depois. */
     consultarPontoUrl: string;
     gravarAjusteUrl: string;
     token: string;
-    /** Em dev, sem n8n configurado, simula respostas do RM. */
-    fake: boolean;
   };
 }
 
@@ -47,10 +54,15 @@ export default (): Config => ({
     ssl: (process.env.DB_SSL ?? 'false') === 'true',
   },
   rm: {
-    validarUrl: process.env.N8N_RM_VALIDAR_URL ?? '',
+    fake: (process.env.RM_FAKE ?? 'true') === 'true',
+    apiUrl: (process.env.RM_API_URL ?? '').replace(/\/$/, ''),
+    apiUser: process.env.RM_API_USER ?? '',
+    apiPass: process.env.RM_API_PASS ?? '',
+    consultaCod: process.env.RM_CONSULTA_COD ?? '',
+    coligada: Number(process.env.RM_COLIGADA ?? 1),
+    sistema: process.env.RM_SISTEMA ?? 'P',
     consultarPontoUrl: process.env.N8N_RM_PONTO_URL ?? '',
     gravarAjusteUrl: process.env.N8N_RM_AJUSTE_URL ?? '',
     token: process.env.N8N_TOKEN ?? '',
-    fake: (process.env.RM_FAKE ?? 'true') === 'true',
   },
 });

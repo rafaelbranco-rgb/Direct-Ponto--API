@@ -8,6 +8,7 @@ import configuracao, { Config } from './config/configuracao';
 import { AuthModule } from './auth/auth.module';
 import { ChamadosModule } from './chamados/chamados.module';
 import { IntegracaoModule } from './integracao/integracao.module';
+import { SincronizacaoModule } from './integracao/sincronizacao.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { Chamado } from './entities/chamado.entity';
 import { Mensagem } from './entities/mensagem.entity';
@@ -38,6 +39,7 @@ import { Usuario } from './entities/usuario.entity';
     AuthModule,
     UsuariosModule,
     ChamadosModule,
+    SincronizacaoModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
