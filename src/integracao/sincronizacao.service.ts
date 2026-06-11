@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -23,43 +24,59 @@ export class SincronizacaoService {
     private readonly rm: RmService,
   ) {}
 
-  /** Puxa os funcionários do RM e cria/atualiza os colaboradores no Postgres. */
+  /** Puxa os funcionários do RM e cria/atualiza os colaboradores no Postgres (em lote). */
   async sincronizar(): Promise<ResultadoSync> {
     const funcionarios = await this.rm.listarFuncionarios();
-    let criados = 0;
-    let atualizados = 0;
+
+    // 1 query para o que já existe (cpf → entidade), evita N selects.
+    const existentes = await this.repo.find({
+      where: { tipo: TipoUsuario.COLABORADOR },
+      select: ['id', 'cpf', 'nome', 'matricula', 'setor'],
+    });
+    const porCpf = new Map(existentes.filter((e) => e.cpf).map((e) => [e.cpf as string, e]));
+
+    const novos: Usuario[] = [];
+    const alterados: Usuario[] = [];
+    const vistos = new Set<string>();
     let ignorados = 0;
 
     for (const f of funcionarios) {
       const cpf = normalizarCpf(f.cpf);
-      if (cpf.length !== 11 || !f.nome) {
+      if (cpf.length !== 11 || !f.nome || vistos.has(cpf)) {
         ignorados++;
         continue;
       }
-      const existente = await this.repo.findOne({ where: { cpf } });
+      vistos.add(cpf);
+      const matricula = f.matricula || null;
+      const setor = f.setor || null;
+      const existente = porCpf.get(cpf);
       if (existente) {
-        existente.nome = f.nome;
-        if (f.matricula) existente.matricula = f.matricula;
-        if (f.setor) existente.setor = f.setor;
-        await this.repo.save(existente);
-        atualizados++;
+        if (existente.nome !== f.nome || existente.matricula !== matricula || existente.setor !== setor) {
+          existente.nome = f.nome;
+          existente.matricula = matricula;
+          existente.setor = setor;
+          alterados.push(existente);
+        }
       } else {
-        await this.repo.save(
+        novos.push(
           this.repo.create({
+            id: randomUUID(),
             tipo: TipoUsuario.COLABORADOR,
             nome: f.nome,
             cpf,
-            matricula: f.matricula || null,
-            setor: f.setor || null,
+            matricula,
+            setor,
             papel: null,
             senhaDefinida: false,
           }),
         );
-        criados++;
       }
     }
 
-    const resultado = { total: funcionarios.length, criados, atualizados, ignorados };
+    if (novos.length) await this.repo.save(novos, { chunk: 300 });
+    if (alterados.length) await this.repo.save(alterados, { chunk: 300 });
+
+    const resultado = { total: funcionarios.length, criados: novos.length, atualizados: alterados.length, ignorados };
     this.log.log(`Sincronização RM: ${JSON.stringify(resultado)}`);
     return resultado;
   }

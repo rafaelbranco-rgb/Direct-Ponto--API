@@ -34,10 +34,13 @@ export class RmService {
     return this.config.get('rm', { infer: true });
   }
 
-  /** Lê um campo do registro independente de caixa (COLIGADA/Coligada/coligada). */
+  /** Lê um campo do registro ignorando caixa e acento (Função, Situação, COLIGADA…). */
   private campo(linha: Record<string, unknown>, ...nomes: string[]): string {
+    const acentos = new RegExp('[\\u0300-\\u036f]', 'g');
+    const norm = (s: string) => s.normalize('NFD').replace(acentos, '').toLowerCase();
     for (const n of nomes) {
-      const chave = Object.keys(linha).find((k) => k.toLowerCase() === n.toLowerCase());
+      const alvo = norm(n);
+      const chave = Object.keys(linha).find((k) => norm(k) === alvo);
       if (chave != null && linha[chave] != null) return String(linha[chave]).trim();
     }
     return '';
@@ -75,7 +78,7 @@ export class RmService {
       matricula: this.campo(l, 'MATRICULA', 'CHAPA'),
       nome: this.campo(l, 'NOME'),
       cpf: this.campo(l, 'CPF'),
-      setor: this.campo(l, 'SETOR', 'DESCRICAO', 'SECAO'),
+      setor: this.campo(l, 'SETOR', 'DESCRICAO', 'SECAO', 'FUNCAO', 'CARGO'),
       situacao: this.campo(l, 'SITUACAO', 'CODSITUACAO'),
     }));
   }
