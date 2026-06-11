@@ -1,0 +1,43 @@
+# Sobe a API + PostgreSQL juntos na VM (intranet). Uso: docker compose up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-contato}
+      POSTGRES_PASSWORD: ${DB_PASS:-contato}
+      POSTGRES_DB: ${DB_NAME:-contato}
+    volumes:
+      - contato_pg:/var/lib/postgresql/data
+    # Exposto só no localhost da VM (não na rede). Remova se a API rodar fora do compose.
+    ports:
+      - '127.0.0.1:5432:5432'
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      PORT: 3333
+      HOST: 0.0.0.0
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-contato}
+      DB_PASS: ${DB_PASS:-contato}
+      DB_NAME: ${DB_NAME:-contato}
+      DB_SYNC: ${DB_SYNC:-true}
+      JWT_SECRET: ${JWT_SECRET:-troque-este-segredo}
+      JWT_EXPIRA_EM: ${JWT_EXPIRA_EM:-12h}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      RM_FAKE: ${RM_FAKE:-true}
+      N8N_TOKEN: ${N8N_TOKEN:-}
+      N8N_RM_VALIDAR_URL: ${N8N_RM_VALIDAR_URL:-}
+      N8N_RM_PONTO_URL: ${N8N_RM_PONTO_URL:-}
+      N8N_RM_AJUSTE_URL: ${N8N_RM_AJUSTE_URL:-}
+    # Porta da API exposta na rede da empresa (intranet).
+    ports:
+      - '3333:3333'
+
+volumes:
+  contato_pg:
