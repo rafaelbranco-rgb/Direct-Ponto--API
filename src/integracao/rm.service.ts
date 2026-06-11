@@ -56,7 +56,7 @@ export class RmService {
     if (!apiUrl || !consultaCod) {
       throw new ServiceUnavailableException('Web service do RM não configurado (RM_API_URL / RM_CONSULTA_COD).');
     }
-    const url = `${apiUrl}/api/framework/v1/consultaSQLServer/RealizarConsulta/${consultaCod}/${coligada}/${sistema}`;
+    const url = `${apiUrl}/api/framework/v1/consultaSQLServer/RealizaConsulta/${consultaCod}/${coligada}/${sistema}/`;
     const auth = Buffer.from(`${apiUser}:${apiPass}`).toString('base64');
     let res: Response;
     try {
