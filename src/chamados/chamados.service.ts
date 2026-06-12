@@ -71,6 +71,13 @@ export class ChamadosService {
     await this.addSistema(chamado.id, `Protocolo ${protocolo} — Atendimento solicitado`);
     const completo = await this.detalhe(chamado.id, user);
     this.chat.emitirNovoChamado(completo);
+    this.chat.notificarAtendentes({
+      tipo: 'chamado',
+      chamadoId: chamado.id,
+      protocolo,
+      categoria: dto.categoria,
+      de: user.nome,
+    });
     return completo;
   }
 
@@ -137,6 +144,24 @@ export class ChamadosService {
       }),
     );
     this.chat.emitirMensagem(id, m);
+    if (user.tipo === TipoUsuario.COLABORADOR) {
+      this.chat.notificarAtendentes({
+        tipo: 'mensagem',
+        chamadoId: id,
+        protocolo: chamado.protocolo,
+        categoria: chamado.categoria,
+        de: user.nome,
+        texto: m.texto,
+      });
+    } else {
+      this.chat.notificarColaborador(chamado.colaboradorId, {
+        tipo: 'mensagem',
+        chamadoId: id,
+        categoria: chamado.categoria,
+        de: user.nome,
+        texto: m.texto,
+      });
+    }
     return m;
   }
 
@@ -168,6 +193,12 @@ export class ChamadosService {
     const rotulo = decisao === 'APROVADO' ? 'Aprovado' : 'Recusado';
     await this.addSistema(id, `Protocolo ${chamado.protocolo} — Atendimento finalizado por ${user.nome} (${rotulo})`);
     this.chat.emitirAtualizacao(id);
+    this.chat.notificarColaborador(chamado.colaboradorId, {
+      tipo: 'decisao',
+      chamadoId: id,
+      categoria: chamado.categoria,
+      decisao,
+    });
     return this.detalhe(id, user);
   }
 

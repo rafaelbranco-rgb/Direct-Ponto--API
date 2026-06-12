@@ -8,7 +8,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
-import { UsuarioToken } from '../common/enums';
+import { TipoUsuario, UsuarioToken } from '../common/enums';
 
 /** Chat em tempo real. Cada chamado é uma sala (`chamado:<id>`). */
 @WebSocketGateway({ namespace: '/chat', cors: { origin: true } })
@@ -25,10 +25,23 @@ export class ChatGateway implements OnGatewayConnection {
     try {
       const user = this.jwt.verify<UsuarioToken>(token);
       client.data.user = user;
+      // Salas para notificações: a do próprio usuário e, se atendente, a "atendentes".
+      client.join(`user:${user.sub}`);
+      if (user.tipo === TipoUsuario.ATENDENTE) client.join('atendentes');
     } catch {
       this.log.warn(`Conexão recusada (token inválido): ${client.id}`);
       client.disconnect(true);
     }
+  }
+
+  /** Notifica todos os atendentes conectados (novo chamado / mensagem de colaborador). */
+  notificarAtendentes(payload: unknown) {
+    this.server.to('atendentes').emit('notificacao', payload);
+  }
+
+  /** Notifica um colaborador específico (resposta do atendente / decisão). */
+  notificarColaborador(colaboradorId: string, payload: unknown) {
+    this.server.to(`user:${colaboradorId}`).emit('notificacao', payload);
   }
 
   @SubscribeMessage('entrar')
