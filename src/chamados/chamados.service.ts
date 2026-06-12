@@ -158,20 +158,9 @@ export class ChamadosService {
       throw new BadRequestException('Informe o motivo da recusa.');
     }
 
-    if (decisao === 'APROVADO') {
-      const colaborador = await this.usuarios.findOne({ where: { id: chamado.colaboradorId } });
-      // Grava o ajuste na folha (RM Labore) via n8n antes de concluir.
-      await this.rm.gravarAjuste({
-        protocolo: chamado.protocolo,
-        cpf: colaborador?.cpf ?? null,
-        matricula: colaborador?.matricula ?? null,
-        categoria: chamado.categoria,
-        dataOcorrencia: chamado.dataOcorrencia,
-        horarioOriginal: chamado.horarioOriginal,
-        horarioProposto: chamado.horarioProposto,
-      });
-    }
-
+    // As aplicações são apenas de COMUNICAÇÃO: a decisão só registra o status e
+    // avisa o colaborador (mensagem de sistema + status no app dele em tempo real).
+    // NÃO grava nada no RM/folha — nenhuma integração de escrita é acionada aqui.
     chamado.status = decisao === 'APROVADO' ? StatusChamado.APROVADO : StatusChamado.RECUSADO;
     chamado.atendenteId = user.sub;
     chamado.motivoRecusa = decisao === 'RECUSADO' ? motivo!.trim() : null;
