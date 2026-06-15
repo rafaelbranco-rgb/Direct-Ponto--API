@@ -20,6 +20,12 @@ export class ChamadosController {
     return this.chamados.listar(user);
   }
 
+  // IMPORTANTE: rota fixa antes de ':id' para não ser capturada como id.
+  @Get('historico')
+  historico(@UsuarioAtual() user: UsuarioToken) {
+    return this.chamados.listarHistorico(user);
+  }
+
   @Get(':id')
   detalhe(@UsuarioAtual() user: UsuarioToken, @Param('id') id: string) {
     return this.chamados.detalhe(id, user);

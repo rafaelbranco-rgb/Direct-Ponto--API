@@ -104,6 +104,15 @@ export class ChamadosService {
     };
   }
 
+  /** Histórico completo: TODOS os chamados (qualquer atendente) — igual para
+   *  todas as contas de atendente/supervisor. Sem mensagens (vêm no detalhe). */
+  async listarHistorico(user: UsuarioToken) {
+    if (user.tipo !== TipoUsuario.ATENDENTE) {
+      throw new ForbiddenException('Apenas atendentes acessam o histórico.');
+    }
+    return this.chamados.find({ order: { criadoEm: 'DESC' } });
+  }
+
   async detalhe(id: string, user: UsuarioToken) {
     const chamado = await this.chamados.findOne({ where: { id } });
     if (!chamado) throw new NotFoundException('Chamado não encontrado.');
