@@ -12,6 +12,7 @@ import { Chamado } from '../entities/chamado.entity';
 import { Mensagem } from '../entities/mensagem.entity';
 import { Usuario } from '../entities/usuario.entity';
 import { RmService } from '../integracao/rm.service';
+import { PushService } from '../push/push.service';
 import { AbrirChamadoDto, MensagemDto } from './chamados.dto';
 import { ChatGateway } from './chat.gateway';
 
@@ -27,6 +28,7 @@ export class ChamadosService {
     @InjectRepository(Usuario) private readonly usuarios: Repository<Usuario>,
     private readonly rm: RmService,
     private readonly chat: ChatGateway,
+    private readonly push: PushService,
   ) {}
 
   private async gerarProtocolo(): Promise<string> {
@@ -161,6 +163,12 @@ export class ChamadosService {
         de: user.nome,
         texto: m.texto,
       });
+      void this.push.enviarParaUsuario(chamado.colaboradorId, {
+        title: `Contato • ${user.nome}`,
+        body: m.texto || 'Nova mensagem no seu atendimento.',
+        url: '/',
+        tag: `chamado-${id}`,
+      });
     }
     return m;
   }
@@ -198,6 +206,12 @@ export class ChamadosService {
       chamadoId: id,
       categoria: chamado.categoria,
       decisao,
+    });
+    void this.push.enviarParaUsuario(chamado.colaboradorId, {
+      title: 'Contato • Resultado',
+      body: decisao === 'APROVADO' ? 'Sua justificativa foi aprovada. ✅' : 'Sua justificativa foi recusada.',
+      url: '/',
+      tag: `decisao-${id}`,
     });
     return this.detalhe(id, user);
   }

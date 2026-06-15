@@ -10,9 +10,11 @@ import { ChamadosModule } from './chamados/chamados.module';
 import { IntegracaoModule } from './integracao/integracao.module';
 import { SincronizacaoModule } from './integracao/sincronizacao.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
+import { PushModule } from './push/push.module';
 import { Chamado } from './entities/chamado.entity';
 import { Mensagem } from './entities/mensagem.entity';
 import { Usuario } from './entities/usuario.entity';
+import { PushSubscription } from './entities/push-subscription.entity';
 
 @Module({
   imports: [
@@ -29,7 +31,7 @@ import { Usuario } from './entities/usuario.entity';
           username: db.user,
           password: db.senha,
           database: db.base,
-          entities: [Usuario, Chamado, Mensagem],
+          entities: [Usuario, Chamado, Mensagem, PushSubscription],
           synchronize: db.sync,
           ssl: db.ssl ? { rejectUnauthorized: false } : false,
         };
@@ -40,6 +42,7 @@ import { Usuario } from './entities/usuario.entity';
     UsuariosModule,
     ChamadosModule,
     SincronizacaoModule,
+    PushModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

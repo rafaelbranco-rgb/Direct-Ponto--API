@@ -4,6 +4,11 @@ export interface Config {
   host: string;
   corsOrigins: string[];
   jwt: { secret: string; expiraEm: string };
+  push: {
+    vapidPublic: string;
+    vapidPrivate: string;
+    vapidSubject: string;
+  };
   db: {
     host: string;
     port: number;
@@ -43,6 +48,11 @@ export default (): Config => ({
   jwt: {
     secret: process.env.JWT_SECRET ?? 'troque-este-segredo-em-producao',
     expiraEm: process.env.JWT_EXPIRA_EM ?? '12h',
+  },
+  push: {
+    vapidPublic: process.env.VAPID_PUBLIC ?? '',
+    vapidPrivate: process.env.VAPID_PRIVATE ?? '',
+    vapidSubject: process.env.VAPID_SUBJECT ?? 'mailto:ti@aionscorp.com',
   },
   db: {
     host: process.env.DB_HOST ?? 'localhost',
