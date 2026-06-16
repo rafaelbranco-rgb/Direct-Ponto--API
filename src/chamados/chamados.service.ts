@@ -92,9 +92,11 @@ export class ChamadosService {
       });
       return { meus };
     }
-    const supervisor = user.papel === 'SUPERVISOR';
+    // "Em atendimento"/"Encerrados" são SEMPRE pessoais (do atendente logado),
+    // para qualquer papel — ao transferir, o chamado sai da lista de quem
+    // transferiu e entra na do destino. O histórico completo fica na aba Histórico.
     const todos = await this.chamados.find({ order: { criadoEm: 'DESC' } });
-    const meu = (c: Chamado) => supervisor || c.atendenteId === user.sub;
+    const meu = (c: Chamado) => c.atendenteId === user.sub;
     return {
       emEspera: todos
         .filter((c) => c.status === StatusChamado.PENDENTE)

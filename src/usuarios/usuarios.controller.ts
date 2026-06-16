@@ -10,8 +10,9 @@ import { CriarAtendenteDto, ResetarSenhaDto, TrocarSenhaDto } from './usuarios.d
 export class UsuariosController {
   constructor(private readonly usuarios: UsuariosService) {}
 
-  /** Apenas supervisor cadastra atendentes. */
-  @Papeis(Papel.SUPERVISOR)
+  /** Qualquer conta de atendimento cadastra usuários (os papéis têm os mesmos
+   *  benefícios; "atendente"/"supervisor" são apenas rótulos). */
+  @Papeis(Papel.ATENDENTE, Papel.SUPERVISOR)
   @Post('atendentes')
   criarAtendente(@Body() dto: CriarAtendenteDto) {
     return this.usuarios.criarAtendente(dto);
