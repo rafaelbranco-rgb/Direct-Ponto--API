@@ -6,13 +6,14 @@ import { PushModule } from '../push/push.module';
 import { Chamado } from '../entities/chamado.entity';
 import { Mensagem } from '../entities/mensagem.entity';
 import { Usuario } from '../entities/usuario.entity';
+import { AnexosController } from './anexos.controller';
 import { ChamadosController } from './chamados.controller';
 import { ChamadosService } from './chamados.service';
 import { ChatGateway } from './chat.gateway';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Chamado, Mensagem, Usuario]), AuthModule, PushModule],
-  controllers: [ChamadosController],
+  controllers: [ChamadosController, AnexosController],
   providers: [ChamadosService, ChatGateway],
 })
 export class ChamadosModule {}

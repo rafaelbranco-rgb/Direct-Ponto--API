@@ -4,9 +4,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
+import { promises as fs } from 'fs';
+import { extname, join } from 'path';
 
+import type { Config } from '../config/configuracao';
 import { AutorMensagem, StatusChamado, TipoUsuario, UsuarioToken } from '../common/enums';
 import { Chamado } from '../entities/chamado.entity';
 import { Mensagem } from '../entities/mensagem.entity';
@@ -29,6 +34,7 @@ export class ChamadosService {
     private readonly rm: RmService,
     private readonly chat: ChatGateway,
     private readonly push: PushService,
+    private readonly config: ConfigService<Config, true>,
   ) {}
 
   private async gerarProtocolo(): Promise<string> {
@@ -129,23 +135,11 @@ export class ChamadosService {
   }
 
   async enviarMensagem(id: string, user: UsuarioToken, dto: MensagemDto) {
-    const chamado = await this.chamados.findOne({ where: { id } });
-    if (!chamado) throw new NotFoundException('Chamado não encontrado.');
+    const chamado = await this.exigirAcesso(id, user);
     if (!dto.texto?.trim() && !dto.anexoNome) {
       throw new BadRequestException('Mensagem vazia.');
     }
-    if (user.tipo === TipoUsuario.COLABORADOR && chamado.colaboradorId !== user.sub) {
-      throw new ForbiddenException('Sem acesso a este chamado.');
-    }
-
-    // Atendente respondendo um chamado em espera assume o atendimento.
-    if (user.tipo === TipoUsuario.ATENDENTE && chamado.status === StatusChamado.PENDENTE) {
-      chamado.status = StatusChamado.EM_ATENDIMENTO;
-      chamado.atendenteId = user.sub;
-      await this.chamados.save(chamado);
-      await this.addSistema(id, `Protocolo ${chamado.protocolo} — Atendimento iniciado por ${user.nome}`);
-    }
-
+    await this.assumirSePendente(chamado, user);
     const m = await this.mensagens.save(
       this.mensagens.create({
         chamadoId: id,
@@ -156,32 +150,103 @@ export class ChamadosService {
         anexoEhImagem: dto.anexoEhImagem ?? null,
       }),
     );
-    this.chat.emitirMensagem(id, m);
+    await this.distribuir(chamado, m, user);
+    return m;
+  }
+
+  /** Recebe um arquivo enviado pelo app/console, grava no disco e cria a mensagem. */
+  async salvarAnexo(
+    id: string,
+    user: UsuarioToken,
+    arquivo?: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+  ) {
+    const chamado = await this.exigirAcesso(id, user);
+    if (!arquivo?.buffer?.length) throw new BadRequestException('Arquivo ausente ou vazio.');
+    await this.assumirSePendente(chamado, user);
+
+    const dir = join(this.config.get('uploadDir', { infer: true }), id);
+    await fs.mkdir(dir, { recursive: true });
+    const ext = extname(arquivo.originalname || '').slice(0, 12);
+    const nomeArmazenado = `${randomUUID()}${ext}`;
+    await fs.writeFile(join(dir, nomeArmazenado), arquivo.buffer);
+
+    const ehImagem = (arquivo.mimetype || '').startsWith('image/');
+    const m = await this.mensagens.save(
+      this.mensagens.create({
+        chamadoId: id,
+        autor: user.tipo === TipoUsuario.COLABORADOR ? AutorMensagem.COLABORADOR : AutorMensagem.ATENDENTE,
+        texto: '',
+        horario: horaAgora(),
+        anexoNome: arquivo.originalname || 'anexo',
+        anexoEhImagem: ehImagem,
+        anexoMime: arquivo.mimetype || 'application/octet-stream',
+        anexoArquivo: `${id}/${nomeArmazenado}`,
+      }),
+    );
+    await this.distribuir(chamado, m, user);
+    return m;
+  }
+
+  /** Caminho/MIME/nome de um anexo para download, validando o acesso do usuário. */
+  async lerAnexo(mensagemId: string, user: UsuarioToken) {
+    const m = await this.mensagens.findOne({ where: { id: mensagemId } });
+    if (!m || !m.anexoArquivo) throw new NotFoundException('Anexo não encontrado.');
+    await this.exigirAcesso(m.chamadoId, user);
+    return {
+      caminho: join(this.config.get('uploadDir', { infer: true }), m.anexoArquivo),
+      mime: m.anexoMime ?? 'application/octet-stream',
+      nome: m.anexoNome ?? 'anexo',
+    };
+  }
+
+  /** Garante que o chamado existe e que o usuário pode acessá-lo. */
+  private async exigirAcesso(id: string, user: UsuarioToken): Promise<Chamado> {
+    const chamado = await this.chamados.findOne({ where: { id } });
+    if (!chamado) throw new NotFoundException('Chamado não encontrado.');
+    if (user.tipo === TipoUsuario.COLABORADOR && chamado.colaboradorId !== user.sub) {
+      throw new ForbiddenException('Sem acesso a este chamado.');
+    }
+    return chamado;
+  }
+
+  /** Atendente respondendo um chamado em espera assume o atendimento. */
+  private async assumirSePendente(chamado: Chamado, user: UsuarioToken) {
+    if (user.tipo === TipoUsuario.ATENDENTE && chamado.status === StatusChamado.PENDENTE) {
+      chamado.status = StatusChamado.EM_ATENDIMENTO;
+      chamado.atendenteId = user.sub;
+      await this.chamados.save(chamado);
+      await this.addSistema(chamado.id, `Protocolo ${chamado.protocolo} — Atendimento iniciado por ${user.nome}`);
+    }
+  }
+
+  /** Emite a mensagem no socket e dispara as notificações para o outro lado. */
+  private async distribuir(chamado: Chamado, m: Mensagem, user: UsuarioToken) {
+    this.chat.emitirMensagem(chamado.id, m);
+    const previa = m.texto || (m.anexoNome ? '📎 Anexo' : '');
     if (user.tipo === TipoUsuario.COLABORADOR) {
       this.chat.notificarAtendentes({
         tipo: 'mensagem',
-        chamadoId: id,
+        chamadoId: chamado.id,
         protocolo: chamado.protocolo,
         categoria: chamado.categoria,
         de: user.nome,
-        texto: m.texto,
+        texto: previa,
       });
     } else {
       this.chat.notificarColaborador(chamado.colaboradorId, {
         tipo: 'mensagem',
-        chamadoId: id,
+        chamadoId: chamado.id,
         categoria: chamado.categoria,
         de: user.nome,
-        texto: m.texto,
+        texto: previa,
       });
       void this.push.enviarParaUsuario(chamado.colaboradorId, {
         title: `Contato • ${user.nome}`,
-        body: m.texto || 'Nova mensagem no seu atendimento.',
+        body: previa || 'Nova mensagem no seu atendimento.',
         url: '/',
-        tag: `chamado-${id}`,
+        tag: `chamado-${chamado.id}`,
       });
     }
-    return m;
   }
 
   async atender(id: string, user: UsuarioToken) {

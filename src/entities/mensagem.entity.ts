@@ -44,6 +44,14 @@ export class Mensagem {
   @Column({ type: 'boolean', nullable: true })
   anexoEhImagem: boolean | null;
 
+  /** MIME do anexo (ex.: image/jpeg, application/pdf). */
+  @Column({ type: 'varchar', nullable: true })
+  anexoMime: string | null;
+
+  /** Caminho relativo do arquivo salvo no disco (uploadDir): "<chamadoId>/<uuid>.ext". */
+  @Column({ type: 'varchar', nullable: true })
+  anexoArquivo: string | null;
+
   @CreateDateColumn()
   criadoEm: Date;
 }

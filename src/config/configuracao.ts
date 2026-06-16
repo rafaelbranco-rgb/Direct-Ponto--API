@@ -1,8 +1,12 @@
+import { join } from 'path';
+
 /** Configuração centralizada, lida do ambiente (.env). */
 export interface Config {
   port: number;
   host: string;
   corsOrigins: string[];
+  /** Pasta onde os anexos são gravados em disco. */
+  uploadDir: string;
   jwt: { secret: string; expiraEm: string };
   push: {
     vapidPublic: string;
@@ -45,6 +49,7 @@ export default (): Config => ({
   port: Number(process.env.PORT ?? 3333),
   host: process.env.HOST ?? '0.0.0.0',
   corsOrigins: lista(process.env.CORS_ORIGINS) ,
+  uploadDir: process.env.UPLOAD_DIR ?? join(process.cwd(), 'uploads'),
   jwt: {
     secret: process.env.JWT_SECRET ?? 'troque-este-segredo-em-producao',
     expiraEm: process.env.JWT_EXPIRA_EM ?? '30d',

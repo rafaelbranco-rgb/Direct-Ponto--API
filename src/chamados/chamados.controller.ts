@@ -1,9 +1,30 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { UsuarioToken } from '../common/enums';
 import { JwtAuthGuard, UsuarioAtual } from '../common/guards';
 import { ChamadosService } from './chamados.service';
 import { AbrirChamadoDto, DecidirDto, MensagemDto, TransferirDto } from './chamados.dto';
+
+/** Tipo mínimo do arquivo do multer (evita depender de @types/multer). */
+interface ArquivoUpload {
+  buffer: Buffer;
+  originalname: string;
+  mimetype: string;
+  size: number;
+}
+
+/** Limite de tamanho por anexo. */
+const LIMITE_ANEXO = 15 * 1024 * 1024; // 15 MB
 
 @UseGuards(JwtAuthGuard)
 @Controller('chamados')
@@ -34,6 +55,17 @@ export class ChamadosController {
   @Post(':id/mensagens')
   enviar(@UsuarioAtual() user: UsuarioToken, @Param('id') id: string, @Body() dto: MensagemDto) {
     return this.chamados.enviarMensagem(id, user, dto);
+  }
+
+  /** Upload de anexo (foto/documento) — campo de formulário "arquivo". */
+  @Post(':id/anexos')
+  @UseInterceptors(FileInterceptor('arquivo', { limits: { fileSize: LIMITE_ANEXO } }))
+  enviarAnexo(
+    @UsuarioAtual() user: UsuarioToken,
+    @Param('id') id: string,
+    @UploadedFile() arquivo: ArquivoUpload,
+  ) {
+    return this.chamados.salvarAnexo(id, user, arquivo);
   }
 
   @Post(':id/atender')
