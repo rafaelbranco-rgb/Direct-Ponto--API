@@ -47,7 +47,7 @@ export default (): Config => ({
   corsOrigins: lista(process.env.CORS_ORIGINS) ,
   jwt: {
     secret: process.env.JWT_SECRET ?? 'troque-este-segredo-em-producao',
-    expiraEm: process.env.JWT_EXPIRA_EM ?? '12h',
+    expiraEm: process.env.JWT_EXPIRA_EM ?? '30d',
   },
   push: {
     vapidPublic: process.env.VAPID_PUBLIC ?? '',
