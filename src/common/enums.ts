@@ -33,6 +33,8 @@ export enum Categoria {
   ESQUECIMENTO = 'ESQUECIMENTO',
   SAIDA_EXPEDIENTE = 'SAIDA_EXPEDIENTE',
   BANCO_HORAS = 'BANCO_HORAS',
+  /** Canal de dúvidas gerais (não é justificativa de ponto). */
+  DUVIDAS = 'DUVIDAS',
 }
 
 /** Payload do JWT. */
