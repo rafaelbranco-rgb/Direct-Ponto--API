@@ -42,4 +42,11 @@ export class UsuariosController {
   resetarSenha(@Param('id') id: string, @Body() dto: ResetarSenhaDto) {
     return this.usuarios.resetarSenhaColaborador(id, dto.novaSenha);
   }
+
+  /** Reseta a senha de outro atendente/gestor (papéis têm os mesmos benefícios). */
+  @Papeis(Papel.ATENDENTE, Papel.SUPERVISOR)
+  @Post('atendentes/:id/resetar-senha')
+  resetarSenhaAtendente(@Param('id') id: string, @Body() dto: ResetarSenhaDto) {
+    return this.usuarios.resetarSenhaAtendente(id, dto.novaSenha);
+  }
 }

@@ -25,6 +25,38 @@ const RESOLVIDO = [StatusChamado.APROVADO, StatusChamado.RECUSADO];
 const horaAgora = () =>
   new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
+/** Janela máxima (em dias) para a data da ocorrência de uma justificativa. */
+const MAX_DIAS_OCORRENCIA = 60;
+
+/**
+ * Valida a data da ocorrência (YYYY-MM-DD): não pode ser inválida, futura
+ * (tolera 1 dia de fuso) nem mais antiga que MAX_DIAS_OCORRENCIA. O app já
+ * envia "hoje", então isto fecha o bypass via chamada direta à API.
+ */
+function validarDataOcorrencia(valor: string): void {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((valor ?? '').trim());
+  if (!m) throw new BadRequestException('Data da ocorrência inválida (use YYYY-MM-DD).');
+  const data = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (
+    Number.isNaN(data.getTime()) ||
+    data.getMonth() !== Number(m[2]) - 1 ||
+    data.getDate() !== Number(m[3])
+  ) {
+    throw new BadRequestException('Data da ocorrência inválida.');
+  }
+  const agora = new Date();
+  const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  const diffDias = Math.floor((hoje.getTime() - data.getTime()) / 86_400_000);
+  if (diffDias < -1) {
+    throw new BadRequestException('A data da ocorrência não pode ser no futuro.');
+  }
+  if (diffDias > MAX_DIAS_OCORRENCIA) {
+    throw new BadRequestException(
+      `A justificativa deve ser de no máximo ${MAX_DIAS_OCORRENCIA} dias atrás.`,
+    );
+  }
+}
+
 @Injectable()
 export class ChamadosService {
   constructor(
@@ -63,6 +95,7 @@ export class ChamadosService {
     if (user.tipo !== TipoUsuario.COLABORADOR) {
       throw new ForbiddenException('Apenas colaboradores abrem chamados.');
     }
+    validarDataOcorrencia(dto.dataOcorrencia);
     const protocolo = await this.gerarProtocolo();
     const chamado = await this.chamados.save(
       this.chamados.create({

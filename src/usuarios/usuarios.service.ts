@@ -52,12 +52,19 @@ export class UsuariosService {
   /** Busca colaboradores (para o atendente localizar e resetar senha). */
   async buscarColaboradores(busca?: string) {
     const termo = (busca ?? '').trim();
-    const cpf = normalizarCpf(termo);
+    const digitos = normalizarCpf(termo);
+    // Nome sempre por substring. CPF/matrícula por PREFIXO (e só com 2+ dígitos):
+    // CPF tem 11 dígitos, então um substring curto tipo "035" casava quase todo
+    // mundo ("retornava todos"). Prefixo evita esse falso-positivo.
     const where = termo
       ? [
           { tipo: TipoUsuario.COLABORADOR, nome: ILike(`%${termo}%`) },
-          ...(cpf ? [{ tipo: TipoUsuario.COLABORADOR, cpf: ILike(`%${cpf}%`) }] : []),
-          { tipo: TipoUsuario.COLABORADOR, matricula: ILike(`%${termo}%`) },
+          ...(digitos.length >= 2
+            ? [
+                { tipo: TipoUsuario.COLABORADOR, cpf: ILike(`${digitos}%`) },
+                { tipo: TipoUsuario.COLABORADOR, matricula: ILike(`${digitos}%`) },
+              ]
+            : []),
         ]
       : { tipo: TipoUsuario.COLABORADOR };
     const lista = await this.repo.find({ where, order: { nome: 'ASC' }, take: 30 });
@@ -100,6 +107,22 @@ export class UsuariosService {
     u.precisaTrocarSenha = true;
     await this.repo.save(u);
     // Devolve a senha temporária só quando foi gerada pelo sistema (atendente repassa ao colaborador).
+    return { ok: true, senhaTemporaria: novaSenha ? undefined : senha, precisaTrocarSenha: true };
+  }
+
+  /** Reseta a senha de OUTRO atendente/gestor (força troca no próximo acesso). */
+  async resetarSenhaAtendente(atendenteId: string, novaSenha?: string) {
+    const u = await this.repo.findOne({ where: { id: atendenteId } });
+    if (!u || u.tipo !== TipoUsuario.ATENDENTE) {
+      throw new NotFoundException('Atendente não encontrado.');
+    }
+    const senha = novaSenha?.trim() || gerarSenhaTemporaria();
+    if (!senhaForte(senha)) throw new BadRequestException('A senha deve ter ao menos 6 caracteres.');
+    u.senhaHash = await hashSenha(senha);
+    u.senhaDefinida = true;
+    u.precisaTrocarSenha = true;
+    await this.repo.save(u);
+    // Só devolve a senha quando foi gerada pelo sistema (o supervisor repassa).
     return { ok: true, senhaTemporaria: novaSenha ? undefined : senha, precisaTrocarSenha: true };
   }
 }
